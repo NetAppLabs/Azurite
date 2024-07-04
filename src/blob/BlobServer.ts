@@ -12,14 +12,14 @@ import FSExtentStore from "../common/persistence/FSExtentStore";
 import MemoryExtentStore, { SharedChunkStore } from "../common/persistence/MemoryExtentStore";
 import IExtentMetadataStore from "../common/persistence/IExtentMetadataStore";
 import IExtentStore from "../common/persistence/IExtentStore";
-import LokiExtentMetadataStore from "../common/persistence/LokiExtentMetadataStore";
+import S3ExtentMetadataStore from "../common/persistence/S3ExtentMetadataStore";
 import ServerBase, { ServerStatus } from "../common/ServerBase";
 import BlobConfiguration from "./BlobConfiguration";
 import BlobRequestListenerFactory from "./BlobRequestListenerFactory";
 import BlobGCManager from "./gc/BlobGCManager";
 import IBlobMetadataStore from "./persistence/IBlobMetadataStore";
-import LokiBlobMetadataStore from "./persistence/LokiBlobMetadataStore";
 import StorageError from "./errors/StorageError";
+import S3BlobMetadataStore from "./persistence/S3BlobMetadataStore";
 
 const BEFORE_CLOSE_MESSAGE = `Azurite Blob service is closing...`;
 const BEFORE_CLOSE_MESSAGE_GC_ERROR = `Azurite Blob service is closing... Critical error happens during GC.`;
@@ -73,16 +73,15 @@ export default class BlobServer extends ServerBase implements ICleaner {
 
     // We can change the persistency layer implementation by
     // creating a new XXXDataStore class implementing IBlobMetadataStore interface
-    // and replace the default LokiBlobMetadataStore
-    const metadataStore: IBlobMetadataStore = new LokiBlobMetadataStore(
-      configuration.metadataDBPath,
-      configuration.isMemoryPersistence
-    );
+    // and replace the default LokiBlobMeta°dataStore
+    // const metadataStore: IBlobMetadataStore = new LokiBlobMetadataStore(
+    //   configuration.metadataDBPath,
+    //   configuration.isMemoryPersistence
+    // );
 
-    const extentMetadataStore: IExtentMetadataStore = new LokiExtentMetadataStore(
-      configuration.extentDBPath,
-      configuration.isMemoryPersistence
-    );
+    const metadataStore: IBlobMetadataStore = new S3BlobMetadataStore();
+
+    const extentMetadataStore: IExtentMetadataStore = new S3ExtentMetadataStore();
 
     const extentStore: IExtentStore = configuration.isMemoryPersistence ? new MemoryExtentStore(
       "blob",
@@ -173,7 +172,6 @@ export default class BlobServer extends ServerBase implements ICleaner {
   protected async beforeStart(): Promise<void> {
     const msg = `Azurite Blob service is starting on ${this.host}:${this.port}`;
     logger.info(msg);
-
     if (this.accountDataStore !== undefined) {
       await this.accountDataStore.init();
     }

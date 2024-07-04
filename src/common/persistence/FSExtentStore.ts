@@ -315,6 +315,8 @@ export default class FSExtentStore implements IExtentStore {
     extentChunk?: IExtentChunk,
     contextId?: string
   ): Promise<NodeJS.ReadableStream> {
+    this.logger.info("readExtent here?")
+    this.logger.info(JSON.stringify(extentChunk));
     if (extentChunk === undefined || extentChunk.count === 0) {
       return new ZeroBytesStream(0);
     }
