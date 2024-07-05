@@ -119,7 +119,6 @@ export default class S3ExtentMetadataStore implements IExtentMetadataStore {
         });
 
         const listedObjects = await s3.send(params);
-
         for (const item of listedObjects.Contents || []) {
           const path = bucketName + "/" + item.Key;
           const model: IExtentModel = {

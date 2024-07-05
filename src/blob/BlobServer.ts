@@ -8,8 +8,7 @@ import ICleaner from "../common/ICleaner";
 import IGCManager from "../common/IGCManager";
 import IRequestListenerFactory from "../common/IRequestListenerFactory";
 import logger from "../common/Logger";
-import FSExtentStore from "../common/persistence/FSExtentStore";
-import MemoryExtentStore, { SharedChunkStore } from "../common/persistence/MemoryExtentStore";
+import S3ExtentStore from "../common/persistence/S3ExtentStore";
 import IExtentMetadataStore from "../common/persistence/IExtentMetadataStore";
 import IExtentStore from "../common/persistence/IExtentStore";
 import S3ExtentMetadataStore from "../common/persistence/S3ExtentMetadataStore";
@@ -18,7 +17,6 @@ import BlobConfiguration from "./BlobConfiguration";
 import BlobRequestListenerFactory from "./BlobRequestListenerFactory";
 import BlobGCManager from "./gc/BlobGCManager";
 import IBlobMetadataStore from "./persistence/IBlobMetadataStore";
-import StorageError from "./errors/StorageError";
 import S3BlobMetadataStore from "./persistence/S3BlobMetadataStore";
 
 const BEFORE_CLOSE_MESSAGE = `Azurite Blob service is closing...`;
@@ -83,17 +81,19 @@ export default class BlobServer extends ServerBase implements ICleaner {
 
     const extentMetadataStore: IExtentMetadataStore = new S3ExtentMetadataStore();
 
-    const extentStore: IExtentStore = configuration.isMemoryPersistence ? new MemoryExtentStore(
-      "blob",
-      configuration.memoryStore ?? SharedChunkStore,
-      extentMetadataStore,
-      logger,
-      (sc, er, em, ri) => new StorageError(sc, er, em, ri)
-    ) : new FSExtentStore(
-      extentMetadataStore,
-      configuration.persistencePathArray,
-      logger
-    );
+    // const extentStore: IExtentStore = configuration.isMemoryPersistence ? new MemoryExtentStore(
+    //   "blob",
+    //   configuration.memoryStore ?? SharedChunkStore,
+    //   extentMetadataStore,
+    //   logger,
+    //   (sc, er, em, ri) => new StorageError(sc, er, em, ri)
+    // ) : new FSExtentStore(
+    //   extentMetadataStore,
+    //   configuration.persistencePathArray,
+    //   logger
+    // );
+
+    const extentStore: IExtentStore = new S3ExtentStore(extentMetadataStore, logger);
 
     const accountDataStore: IAccountDataStore = new AccountDataStore(logger);
 
