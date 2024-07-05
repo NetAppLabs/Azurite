@@ -32,7 +32,6 @@ export default class AllExtentsAsyncIterator
       DEFAULT_EXTENT_GC_PROTECT_TIME_IN_MS
     );
     this.marker = nextMarker;
-
     if (nextMarker === undefined) {
       this.done = true;
     }

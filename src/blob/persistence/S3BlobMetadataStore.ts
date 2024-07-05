@@ -303,30 +303,78 @@ export default class S3BlobMetadataStore
     includeSnapshots?: boolean,
     includeUncommittedBlobs?: boolean
   ): Promise<[BlobModel[], string | undefined]> {
-    const command = new ListObjectsV2Command({
-      Bucket: 'tester', // Replace with your bucket name
-      MaxKeys: maxResults,
-      ContinuationToken: marker
-    });
+    // const command = new ListObjectsV2Command({
+    //   Bucket: 'tester', // Replace with your bucket name
+    //   MaxKeys: maxResults,
+    //   ContinuationToken: marker
+    // });
 
+    // const s3 = this.getS3Client();
+    // const data: ListObjectsV2CommandOutput = await s3.send(command);
+    // console.log(`ListAllBlobs: ${JSON.stringify(data)}`);
+    // const blobItems: BlobModel[] = data.Contents?.map(item => ({
+    //   accountName: item.Owner?.DisplayName || "",
+    //   containerName: 'bucket',
+    //   name: item.Key!,
+    //   isCommitted: true,
+    //   properties: {
+    //     lastModified: item.LastModified!,
+    //     etag: item.ETag!,
+    //     contentLength: item.Size!
+    //   }
+    // })) || [];
+
+    // const nextMarker = data.IsTruncated ? data.NextContinuationToken : undefined;
+
+    // return [blobItems, nextMarker];
+    // List all buckets
     const s3 = this.getS3Client();
-    const data: ListObjectsV2CommandOutput = await s3.send(command);
-    console.log(`ListAllBlobs: ${JSON.stringify(data)}`);
-    const blobItems: BlobModel[] = data.Contents?.map(item => ({
-      accountName: item.Owner?.DisplayName || "",
-      containerName: 'bucket',
-      name: item.Key!,
-      isCommitted: true,
-      properties: {
-        lastModified: item.LastModified!,
-        etag: item.ETag!,
-        contentLength: item.Size!
+    const blobs: BlobModel[] = [];
+    let nextMarker: string | undefined = undefined;
+
+    try {
+      const listBucketsCommand = new ListBucketsCommand({});
+      const bucketsResponse = await s3.send(listBucketsCommand);
+
+      if (!bucketsResponse.Buckets) {
+        return [blobs, nextMarker];
       }
-    })) || [];
 
-    const nextMarker = data.IsTruncated ? data.NextContinuationToken : undefined;
+      // Iterate over each bucket
+      for (const bucket of bucketsResponse.Buckets) {
+        const bucketName = bucket.Name!;
+        const params = new ListObjectsV2Command({
+          Bucket: bucketName,
+          MaxKeys: maxResults,
+          StartAfter: marker as string
+        });
 
-    return [blobItems, nextMarker];
+        const listedObjects = await s3.send(params);
+        for (const item of listedObjects.Contents || []) {
+          const blob: BlobModel = {
+            accountName: item.Owner?.DisplayName || "",
+            containerName: bucketName,
+            name: item.Key!,
+            isCommitted: true,
+            properties: {
+              lastModified: item.LastModified!,
+              etag: item.ETag!,
+              contentLength: item.Size!
+            },
+            persistency: {
+              id: bucketName + "/" + item.Key,
+              offset: 0, // Assuming offset is 0 for simplicity
+              count: item.Size! // Using the size of the object as the count
+            }
+          }
+          blobs.push(blob);
+        }
+      }
+    } catch (err) {
+      throw new Error(`S3BlobMetadataStore:listAllBlobs() Error: ${err.message}`);
+    }
+
+    return [blobs, nextMarker];
   }
 
   public async listUncommittedBlockPersistencyChunks(
