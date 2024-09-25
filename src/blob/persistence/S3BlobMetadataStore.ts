@@ -277,15 +277,17 @@ export default class S3BlobMetadataStore
     const data: ListObjectsV2CommandOutput = await s3.send(command);
 
     const blobItems: BlobModel[] = data.Contents?.map(item => ({
-      accountName: item.Owner?.DisplayName || "some-owner",
+      accountName: item.Owner?.DisplayName || "",
       containerName: container,
       name: item.Key!,
       isCommitted: true,
       properties: {
+        blobType: Models.BlobType.BlockBlob,
         lastModified: item.LastModified!,
         etag: item.ETag!,
+        contentType: "application/octet-stream",
         contentLength: item.Size!
-      }
+      },
     })) || [];
 
     const blobPrefixes: BlobPrefixModel[] = data.CommonPrefixes?.map(prefix => ({
@@ -357,8 +359,10 @@ export default class S3BlobMetadataStore
             name: item.Key!,
             isCommitted: true,
             properties: {
+              blobType: Models.BlobType.BlockBlob,
               lastModified: item.LastModified!,
               etag: item.ETag!,
+              contentType: "application/octet-stream",
               contentLength: item.Size!
             },
             persistency: {
@@ -384,23 +388,37 @@ export default class S3BlobMetadataStore
     // Assuming uncommitted blocks are stored with a specific prefix
     // const prefix = "uncommitted-blocks/";
 
-    const command = new ListObjectsV2Command({
-      Bucket: 'tester', // Replace with your bucket name
-      // Prefix: prefix,
+    // const command = new ListObjectsV2Command({
+    //   Bucket: 'tester', // Replace with your bucket name
+    //   // Prefix: prefix,
+    //   MaxKeys: maxResults,
+    //   ContinuationToken: marker
+    // });
+    const s3 = this.getS3Client();
+    const listBucketsCommand = new ListBucketsCommand({});
+    const bucketsResponse = await s3.send(listBucketsCommand);
+    let chunks: IExtentChunk[] = [];
+    let nextMarker: string | undefined = undefined;
+
+    if (!bucketsResponse.Buckets) {
+      return [chunks, nextMarker];
+    }
+
+    const bucketName = bucketsResponse.Buckets[0].Name!;
+    const params = new ListObjectsV2Command({
+      Bucket: bucketName,
       MaxKeys: maxResults,
-      ContinuationToken: marker
+      StartAfter: marker as string
     });
 
-    const s3 = this.getS3Client();
-    const data: ListObjectsV2CommandOutput = await s3.send(command);
-
-    const chunks: IExtentChunk[] = data.Contents?.map(item => ({
+    const data: ListObjectsV2CommandOutput = await s3.send(params);
+    chunks = data.Contents?.map(item => ({
       id: item.Key!,
       offset: 0, // Assuming offset is 0 for simplicity
       count: item.Size! // Using the size of the object as the count
     })) || [];
 
-    const nextMarker = data.IsTruncated ? data.NextContinuationToken : undefined;
+    nextMarker = data.IsTruncated ? data.NextContinuationToken : undefined;
 
     return [chunks, nextMarker];
   }

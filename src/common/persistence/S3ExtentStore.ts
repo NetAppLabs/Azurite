@@ -111,9 +111,11 @@ export default class S3ExtentStore implements IExtentStore {
 
     const op = () =>
       new Promise<NodeJS.ReadableStream>((resolve, reject) => {
+        const [bucket, ...keyParts] = extentChunk.id.split("/");
+        const key = keyParts.join("/");
         const getObjectCommand = new GetObjectCommand({
-          Bucket: extentChunk.id.split("/")[0],
-          Key: extentChunk.id.split("/")[1],
+          Bucket: bucket,
+          Key: key,
         });
         const s3Client = this.getS3Client();
         s3Client.send(getObjectCommand)

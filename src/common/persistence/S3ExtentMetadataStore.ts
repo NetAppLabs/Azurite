@@ -24,11 +24,6 @@ export default class S3ExtentMetadataStore implements IExtentMetadataStore {
 
   /**
    * Creates an instance of S3ExtentMetadataStore.
-   *
-   * @param {string} bucketName The name of the S3 bucket.
-   * @param {string} s3Endpoint The S3 endpoint.
-   * @param {string} accessKeyId The access key ID.
-   * @param {string} secretAccessKey The secret access key.
    * @memberof S3ExtentMetadataStore
    */
   public constructor() {
@@ -45,7 +40,7 @@ export default class S3ExtentMetadataStore implements IExtentMetadataStore {
         accessKeyId: this.accessKeyId,
         secretAccessKey: this.secretAccessKey
       },
-      region: 'ontap' // Replace with your region
+      region: 'ontap'
     });
   }
 
@@ -66,7 +61,6 @@ export default class S3ExtentMetadataStore implements IExtentMetadataStore {
   }
 
   public async close(): Promise<void> {
-    // No specific close operation for S3
     this.closed = true;
   }
 
@@ -149,7 +143,7 @@ export default class S3ExtentMetadataStore implements IExtentMetadataStore {
     const getObjectCommand = new GetObjectCommand(params);
     const data = await s3.send(getObjectCommand);
     if (!data.Body) {
-      throw new Error(`S3ExtentMetadataStore:getExtentLocationId() Error. Extent not exists.`);
+      throw new Error(`S3ExtentMetadataStore:getExtentLocationId() Error. Extent doesn't exist.`);
     }
     const extent = JSON.parse(data.Body.toString()) as IExtentModel;
     return extent.locationId;
